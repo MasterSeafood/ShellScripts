@@ -1,0 +1,50 @@
+branches=$(git branch -a | sed 's/^. //' ) #get list of branches
+branchlengths=""
+
+while IFS= read -r branch
+do
+
+    branchlengths=$(echo -e "$(git log $branch | grep '^commit '| wc -l):$branch\n$branchlengths")
+    
+    branchindex=$(($branchindex+1)) #increment counter
+
+done< <(printf '%s\n' "$branches")
+
+branches=$(echo "$branchlengths" | sed 's/remotes/\*/'| sort -nr | sed 's/\*/remotes/' | cut -f2 -d:)
+echo "$branches"
+commits=""
+branchindex='0'
+
+while IFS= read -r branch
+do 
+    log=$(git log $branch | sed -E '/^Author|^Date/d')
+    incommits=$(echo "$log" | grep '^commit ')
+
+    while IFS= read -r commit
+    do
+        if [ $(echo "$commits" | grep -c "$commit" ) -gt 0 ]; then
+            ln=$(echo "$log" | grep -n "$commit" | cut -f1 -d:)
+            log=$(echo "$log" | sed "$(($ln+1)),\$d")
+            ln=$(echo "$incommits" | grep -n "$commit" | cut -f1 -d:)
+            incommits=$(echo "$incommits" | sed "$ln,\$d")
+            break
+        
+        fi
+
+    done< <(printf '%s\n' "$incommits")
+
+    logs[$branchindex]="$log"
+    branchindex=$(($branchindex+1))
+    commits=$(echo -e "$commits\n$incommits")
+
+done< <(printf '%s\n' "$branches")
+
+si="2"
+echo "$branches" | sed "$((${si}+1))!d"
+echo "${logs[$si]}"
+
+
+
+
+
+
