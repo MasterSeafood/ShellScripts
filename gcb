@@ -1,0 +1,26 @@
+currentbranch=$(git branch -a | grep '*' | cut -c3- ) # get original branch
+branches=$(git branch -a | sed 's/^. //' | sed "/^$currentbranch\$/d")
+
+lbranches=$(echo "$branches" | sed '/^remotes\/origin/d')
+rbranches=$(echo "$branches" | grep '^remotes/origin/')
+
+lout=""
+rout=""
+while IFS= read -r branch
+do
+    comahead=$(git log "$currentbranch..$branch" | grep -c '^commit ')
+    combehind=$(git log "$branch..$currentbranch" | grep -c '^commit ')
+    lout=$(echo -e "$lout\n\n$branch\n$comahead+|$combehind-")
+done< <(printf '%s\n' "$lbranches") 
+
+if [ $(echo "$rbranches" | wc -w) -gt 0 ]; then
+    while IFS= read -r branch
+    do
+        comahead=$(git log "$currentbranch..$branch" | grep -c '^commit ')
+        combehind=$(git log "$branch..$currentbranch" | grep -c '^commit ')
+        rout=$(echo -e "$rout\n\n$branch\n$comahead+|$combehind-")
+    done< <(printf '%s\n' "$rbranches")
+fi
+
+
+paste <(echo "$lout") <(echo "$rout") 

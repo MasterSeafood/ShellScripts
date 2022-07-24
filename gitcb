@@ -1,0 +1,82 @@
+#!/bin/bash
+
+toBranch=
+fromBranch=
+showCommit=FALSE
+branches=$(git branch -a | sed 's/^. //' | sed "s/^remotes\///" | sed "/origin\/HEAD/d")
+errorMess="Usage: gitcb [-s tbranch][-c] [branch]
+  -s: compare to tbranch only
+  -c: show the last common commit"
+
+while getopts cs: option #actions for each option
+do
+    case "$option" in
+        c) showCommit=TRUE;;
+        s) toBranch="$OPTARG";;
+        \?) echo "Unrecognized option."
+            echo "$errorMess"
+            exit 1;;
+    esac
+
+done
+
+shift $(($OPTIND - 1)) #shift to remove options
+
+if [ $# -eq 0 ] #no arguments
+then #compare from current branch
+    fromBranch=$(git branch -a | grep '*' | cut -c3-)
+    
+elif [ $# -eq 1 ] #one argument
+then
+    #compare from specific branch
+    fromBranch="$1"
+    if [ $(echo "$branches" | grep -c "^$fromBranch\$" ) -ne 1 ]
+    then
+        echo "$fromBranch is not a recognized branch."
+        echo "$errorMess"
+        exit 3
+    fi
+else #more than one argument
+    echo "Too many arguments."
+    echo "$errorMess"
+    exit 2
+fi
+
+#remove fromBranch from branch list
+fromBranch=$(echo "$fromBranch" | sed 's/\//\\\//')
+branches=$(echo "$branches" | sed "/^$fromBranch\$/d")
+
+if [ -n "$toBranch" ] #if there is a specified toBranch
+then
+    if [ $(echo "$branches" | grep -c "^$toBranch\$") -ne 1 ] # see if it exists
+    then
+        echo "$toBranch is not a recognized branch."
+        echo "$errorMess"
+        exit 4
+    else #replace the branchlist with it
+        branches="$toBranch"
+    fi
+fi 
+
+printf "%-20s  %4s|%4s" "$( echo $fromBranch | sed 's/\\\//\//'):" "Ahd" "Bhd" 
+
+if [ $showCommit = TRUE ]; then printf "  %7s\n" "Lst Cmm"; else printf '\n'; fi # print column labels
+
+for branch in $(echo "$branches") # for each branch on the branch list
+do
+    ahead=$(git log "$frombranch..$branch" | grep -c '^commit ')
+    behind=$(git log "$branch..$frombranch" | grep -c '^commit ')
+    printf '%20s  %3d+|%3d-' "$branch" $ahead $behind #display the number of commits ahead/behind
+
+    if [ $showCommit = TRUE ]
+    then
+        fdcommit=$(git log "$branch..$frombranch" | grep '^commit ' | tail -n1 )  # get the first different commit
+        commit=$(git log $frombranch | grep '^commit ' | grep -A1 "$fdcommit" | grep -v "$fdcommit" | cut -c8-14) #get the last common commit
+        printf '  %7s\n' ${commit:-'-'}
+    else
+        printf '\n'
+    fi
+
+done
+
+
