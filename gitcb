@@ -1,5 +1,10 @@
 #!/bin/bash
 
+#
+# A script to see the relative history between branches 
+#
+
+
 toBranch=
 fromBranch=
 showCommit=FALSE
